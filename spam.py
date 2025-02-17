@@ -7,7 +7,9 @@ from telethon import TelegramClient, events
 from fastapi import FastAPI
 import uvicorn
 from telethon.sessions import StringSession
+from dotenv import load_dotenv
 
+  # Check if it's loaded
 # Configure logging
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
 
