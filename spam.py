@@ -40,6 +40,9 @@ MIN_DELAY, MAX_DELAY = 6, 7
 # Dictionary to manage spam status using session filename
 spam_running = {session_file: False for session_file in SESSION_FILES}
 
+# Manually track session filenames
+session_filename_map = {client: session_file for client, session_file in zip(clients, SESSION_FILES)}
+
 async def send_explore(client):
     """ Sends /explore to bots in the group with randomized delay """
     while True:
@@ -66,7 +69,7 @@ async def handle_buttons(event):
 
 async def auto_spam(client):
     """ Sends messages to the target chat with delay """
-    session_filename = client.session.session_file.filename  # Use the filename directly
+    session_filename = session_filename_map[client]  # Use the manually tracked session filename
     spam_running[session_filename] = True
     while spam_running[session_filename]:
         try:
@@ -84,7 +87,7 @@ async def start_spam(event):
     """ Starts spamming for all clients """
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = client.session.session_file.filename
+            session_filename = session_filename_map[client]
             if not spam_running[session_filename]:
                 await event.reply("✅ Auto Spam Started!")
                 asyncio.create_task(auto_spam(client))
@@ -97,7 +100,7 @@ async def stop_spam(event):
     """ Stops spamming for all clients """
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = client.session.session_file.filename
+            session_filename = session_filename_map[client]
             spam_running[session_filename] = False
             await event.reply("🛑 Stopping Spam!")
 
