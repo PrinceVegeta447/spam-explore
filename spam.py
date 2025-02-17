@@ -13,7 +13,7 @@ logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=log
 
 # API Credentials for 5 accounts
 API_IDS =20118977# Replace with your actual API IDs
-API_HASHES ="c88e99dd46c405f7357acef8ccc92f85"]
+API_HASHES ="c88e99dd46c405f7357acef8ccc92f85"
 
 SESSION_STRINGS ="1BVtsOKEBuyTA1OCMrbwkGgvNVcYbtzwqH-TV-adC-bCYYbrB2Bajeqw4f3eqVfZXewtJqcX9fWkYoiiymlV2_d2ADvhDSFcGt2WhhuYJpIPQHRGX7L1I8wiLrqMAqPpbaEIp2MCrL20OB_rlcN-tUvApc7sOulsUFkbILAodFgyBWeJ9wtn5JIqKHGK0kvHEbYURkAlQtwPlkjQ9Xi4tNTNrTvRRmkp0vIhIWiTj1EhxyVHvH2vYPvdoiGENO1APmJ2zMWQSUfQVgEcOagpHHsfUrwyE2nogOa86IVzcY7c4lBWxsqzQnDV_fcGzi5NFxLheVJHr4viUIdFki2KfodFKJVP0nFs="]  # Replace with actual session strings
 
