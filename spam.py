@@ -24,7 +24,7 @@ SESSION_FILES = [
 ]
 
 # Initialize clients with FileSession (session files should be in the current directory or full path provided)
-clients = [TelegramClient(FileSession(session_file), API_IDS, API_HASHES) for session_file in SESSION_FILES]
+clients = [TelegramClient(SQLiteSession(session_file), API_IDS, API_HASHES) for session_file in SESSION_FILES]
 
 # Group and target chat IDs
 GROUP_ID = -1002348881334
