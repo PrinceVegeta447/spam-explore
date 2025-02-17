@@ -45,14 +45,15 @@ session_filename_map = {client: session_file for client, session_file in zip(cli
 
 async def send_explore(client):
     """ Sends /explore to bots in the group with randomized delay """
-    while True:
+    session_filename = session_filename_map[client]
+    if not spam_running[session_filename]:  # Only run explore if spam is not already running
         for bot in BOTS:
             try:
                 await client.send_message(GROUP_ID, f"/explore {bot}")
                 logging.info(f"Sent /explore to {bot}")
             except Exception as e:
                 logging.error(f"Failed to send /explore to {bot}: {e}")
-            await asyncio.sleep(random.randint(310, 330))
+            await asyncio.sleep(random.randint(310, 330))  # Adjust sleep time as needed
 
 async def handle_buttons(event):
     """ Clicks random inline buttons """
@@ -90,10 +91,11 @@ async def start_spam(event):
             session_filename = session_filename_map[client]
             if not spam_running[session_filename]:
                 await event.reply("✅ Auto Spam Started!")
+                spam_running[session_filename] = True  # Mark as running to prevent further triggers
                 asyncio.create_task(auto_spam(client))
                 asyncio.create_task(send_explore(client))  # Also start explore concurrently
             else:
-                await event.reply("⚠ Already Running!")
+                await event.reply("⚠ Spam is already running!")
 
 @events.register(events.NewMessage(pattern="/stopspam"))
 async def stop_spam(event):
