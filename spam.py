@@ -32,51 +32,48 @@ SPAM_MESSAGES = ["🎲"]
 MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7  # Delay range for spamming
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 330  # Delay range for /explore
 
-# Spam control flag
-spam_running = False
+# Spam control per client
+spam_running = {session: False for session in SESSIONS}
 
 # Create clients for multiple sessions
-clients = [TelegramClient(session, API_ID, API_HASH) for session in SESSIONS]
+clients = {session: TelegramClient(session, API_ID, API_HASH) for session in SESSIONS}
 
-async def auto_spam(client):
+async def auto_spam(client, session_name):
     """Sends random spam messages in the target group."""
-    global spam_running
-    spam_running = True
-    while spam_running:
+    while spam_running[session_name]:
         try:
             msg = random.choice(SPAM_MESSAGES)
             await client.send_message(TARGET_GROUP, msg)
             delay = random.randint(MIN_SPAM_DELAY, MAX_SPAM_DELAY)
-            logging.info(f"Sent: {msg} | Waiting {delay} sec...")
+            logging.info(f"{session_name}: Sent {msg} | Waiting {delay} sec...")
             await asyncio.sleep(delay)
         except Exception as e:
             error_msg = str(e)
             if "A wait of" in error_msg:  # FloodWait handling
                 wait_time = int(error_msg.split()[3])
-                logging.warning(f"FloodWait triggered! Sleeping for {wait_time} seconds...")
+                logging.warning(f"{session_name}: FloodWait! Sleeping {wait_time} sec...")
                 await asyncio.sleep(wait_time)
             else:
-                logging.error(f"Unexpected error: {e}")
+                logging.error(f"{session_name}: Error - {e}")
                 await asyncio.sleep(10)
 
-async def send_explore(client):
+async def send_explore(client, session_name):
     """Sends /explore command to bots at regular intervals."""
     while True:
         for bot in BOTS:
             try:
                 await client.send_message(EXPLORE_GROUP, f"/explore {bot}")
-                logging.info(f"Sent /explore to {bot}")
+                logging.info(f"{session_name}: Sent /explore to {bot}")
             except Exception as e:
-                logging.error(f"Failed to send /explore to {bot}: {e}")
+                logging.error(f"{session_name}: Failed to send /explore - {e}")
             delay = random.randint(MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY)
-            logging.info(f"Waiting {delay} seconds before next /explore...")
+            logging.info(f"{session_name}: Waiting {delay} sec before next /explore...")
             await asyncio.sleep(delay)
 
 async def handle_buttons(event):
     """Clicks random inline buttons when bots send messages with buttons."""
     if event.reply_markup and hasattr(event.reply_markup, 'rows'):
         buttons = [btn for row in event.reply_markup.rows for btn in row.buttons if hasattr(btn, "data")]
-
         if buttons:
             button = random.choice(buttons)
             await asyncio.sleep(random.randint(3, 6))
@@ -84,15 +81,35 @@ async def handle_buttons(event):
                 await event.click(buttons.index(button))
                 logging.info(f"Clicked a button in response to {event.sender_id}")
             except Exception as e:
-                logging.error(f"Failed to click a button: {e}")
+                logging.error(f"Failed to click button: {e}")
+
+async def start_spam(event, client, session_name):
+    """Starts spam when /startspam is received."""
+    global spam_running
+    if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:  # Replace with authorized user IDs
+        if not spam_running[session_name]:
+            spam_running[session_name] = True
+            asyncio.create_task(auto_spam(client, session_name))
+            await event.reply("✅ Auto Spam Started!")
+        else:
+            await event.reply("⚠ Already Running!")
+
+async def stop_spam(event, session_name):
+    """Stops spam when /stopspam is received."""
+    global spam_running
+    if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:  # Replace with authorized user IDs
+        spam_running[session_name] = False
+        await event.reply("🛑 Stopping Spam!")
 
 async def start_clients():
     """Starts all clients and registers event handlers."""
     tasks = []
-    for client in clients:
+    for session_name, client in clients.items():
         await client.start()
         client.add_event_handler(handle_buttons, events.NewMessage(chats=EXPLORE_GROUP))
-        tasks.append(asyncio.create_task(send_explore(client)))
+        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
+        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+        tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
     logging.info("All bots started successfully.")
     await asyncio.gather(*tasks)
@@ -105,7 +122,7 @@ async def main():
 
 # Start the Flask health check in the background
 def run_flask():
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     import threading
