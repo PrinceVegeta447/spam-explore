@@ -5,7 +5,7 @@ import logging
 import threading
 from telethon import TelegramClient, events
 from flask import Flask
-from telethon.sessions import SQLiteSession
+from telethon.sessions import SQLiteSession  # Correct import for SQLiteSession
 
 # Configure logging
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
@@ -14,7 +14,7 @@ logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=log
 API_IDS = 20118977  # Replace with your actual API ID
 API_HASHES = "c88e99dd46c405f7357acef8ccc92f85"
 
-# Session file names (should be in your root directory or specify path)
+# Session file paths (should be in your root directory or specify full path)
 SESSION_FILES = [
     "session_1.session",  # Replace with actual session filenames
     "session_2.session", 
@@ -23,7 +23,7 @@ SESSION_FILES = [
     "session_5.session"
 ]
 
-# Initialize clients with FileSession (session files should be in the current directory or full path provided)
+# Initialize clients with SQLiteSession (session files should be in the current directory or full path provided)
 clients = [TelegramClient(SQLiteSession(session_file), API_IDS, API_HASHES) for session_file in SESSION_FILES]
 
 # Group and target chat IDs
@@ -66,7 +66,7 @@ async def handle_buttons(event):
 
 async def auto_spam(client):
     """ Sends messages to the target chat with delay """
-    session_filename = client.session.session_file.name  # Use the session file name
+    session_filename = client.session.session_file.filename  # Use the filename directly
     spam_running[session_filename] = True
     while spam_running[session_filename]:
         try:
@@ -84,7 +84,7 @@ async def start_spam(event):
     """ Starts spamming for all clients """
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = client.session.session_file.name
+            session_filename = client.session.session_file.filename
             if not spam_running[session_filename]:
                 await event.reply("✅ Auto Spam Started!")
                 asyncio.create_task(auto_spam(client))
@@ -97,7 +97,7 @@ async def stop_spam(event):
     """ Stops spamming for all clients """
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = client.session.session_file.name
+            session_filename = client.session.session_file.filename
             spam_running[session_filename] = False
             await event.reply("🛑 Stopping Spam!")
 
