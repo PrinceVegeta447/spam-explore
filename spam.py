@@ -5,7 +5,7 @@ import logging
 import threading
 from telethon import TelegramClient, events
 from flask import Flask
-from telethon.sessions import FileSession
+from telethon.sessions import SQLiteSession
 
 # Configure logging
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
