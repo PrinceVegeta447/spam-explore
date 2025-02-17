@@ -6,6 +6,7 @@ import threading
 from telethon import TelegramClient, events
 from flask import Flask
 from telethon.sessions import SQLiteSession  # Correct import for SQLiteSession
+from asyncio import Lock
 
 # Configure logging
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
@@ -37,8 +38,11 @@ BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot"]
 MESSAGES = ["🎲"]
 MIN_DELAY, MAX_DELAY = 6, 7
 
-# Dictionary to manage spam status using session filename
-spam_running = {session_file: False for session_file in SESSION_FILES}
+# States for clients (spamming/exploring)
+client_states = {session_file: {"spamming": False, "exploring": False} for session_file in SESSION_FILES}
+
+# Lock to ensure proper sequencing between spam and explore
+spam_lock = Lock()
 
 # Manually track session filenames
 session_filename_map = {client: session_file for client, session_file in zip(clients, SESSION_FILES)}
@@ -46,14 +50,17 @@ session_filename_map = {client: session_file for client, session_file in zip(cli
 async def send_explore(client):
     """ Sends /explore to bots in the group with randomized delay """
     session_filename = session_filename_map[client]
-    if not spam_running[session_filename]:  # Only run explore if spam is not already running
+    if not client_states[session_filename]["exploring"]:
+        client_states[session_filename]["exploring"] = True
         for bot in BOTS:
             try:
+                # Send the explore command with delay between requests
                 await client.send_message(GROUP_ID, f"/explore {bot}")
                 logging.info(f"Sent /explore to {bot}")
+                await asyncio.sleep(random.randint(310, 330))  # Adjust sleep time as needed
             except Exception as e:
                 logging.error(f"Failed to send /explore to {bot}: {e}")
-            await asyncio.sleep(random.randint(310, 330))  # Adjust sleep time as needed
+        client_states[session_filename]["exploring"] = False
 
 async def handle_buttons(event):
     """ Clicks random inline buttons """
@@ -70,18 +77,21 @@ async def handle_buttons(event):
 
 async def auto_spam(client):
     """ Sends messages to the target chat with delay """
-    session_filename = session_filename_map[client]  # Use the manually tracked session filename
-    spam_running[session_filename] = True
-    while spam_running[session_filename]:
-        try:
-            msg = random.choice(MESSAGES)
-            await client.send_message(TARGET, msg)
-            delay = random.randint(MIN_DELAY, MAX_DELAY)
-            logging.info(f"Sent: {msg} | Waiting {delay} sec...")
-            await asyncio.sleep(delay)
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            await asyncio.sleep(10)
+    session_filename = session_filename_map[client]
+    if not client_states[session_filename]["spamming"]:
+        client_states[session_filename]["spamming"] = True
+        while client_states[session_filename]["spamming"]:
+            try:
+                async with spam_lock:  # Ensure only one client sends spam at a time
+                    msg = random.choice(MESSAGES)
+                    await client.send_message(TARGET, msg)
+                    delay = random.randint(MIN_DELAY, MAX_DELAY)
+                    logging.info(f"Sent: {msg} | Waiting {delay} sec...")
+                    await asyncio.sleep(delay)
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                await asyncio.sleep(10)
+        client_states[session_filename]["spamming"] = False
 
 @events.register(events.NewMessage(pattern="/startspam"))
 async def start_spam(event):
@@ -89,11 +99,9 @@ async def start_spam(event):
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
             session_filename = session_filename_map[client]
-            if not spam_running[session_filename]:
+            if not client_states[session_filename]["spamming"]:
                 await event.reply("✅ Auto Spam Started!")
-                spam_running[session_filename] = True  # Mark as running to prevent further triggers
-                asyncio.create_task(auto_spam(client))
-                asyncio.create_task(send_explore(client))  # Also start explore concurrently
+                asyncio.create_task(auto_spam(client))  # Start spam
             else:
                 await event.reply("⚠ Spam is already running!")
 
@@ -103,19 +111,38 @@ async def stop_spam(event):
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
             session_filename = session_filename_map[client]
-            spam_running[session_filename] = False
+            client_states[session_filename]["spamming"] = False
             await event.reply("🛑 Stopping Spam!")
 
+@events.register(events.NewMessage(pattern="/startexplore"))
+async def start_explore(event):
+    """ Starts explore for all clients """
+    for client in clients:
+        if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
+            session_filename = session_filename_map[client]
+            if not client_states[session_filename]["exploring"]:
+                await event.reply("✅ Explore Started!")
+                asyncio.create_task(send_explore(client))  # Start explore
+            else:
+                await event.reply("⚠ Explore is already running!")
+
+@events.register(events.NewMessage(pattern="/stopexplore"))
+async def stop_explore(event):
+    """ Stops explore for all clients """
+    for client in clients:
+        if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
+            session_filename = session_filename_map[client]
+            client_states[session_filename]["exploring"] = False
+            await event.reply("🛑 Stopping Explore!")
+
 async def run_client(client):
-    """ Starts a single client, running both spam and explore functions concurrently """
+    """ Starts a single client, running spam and explore functions independently """
     await client.start()
     client.add_event_handler(handle_buttons, events.NewMessage(chats=GROUP_ID))
     client.add_event_handler(start_spam)
     client.add_event_handler(stop_spam)
-    await asyncio.gather(
-        send_explore(client),  # Run explore concurrently
-        auto_spam(client)      # Run spam concurrently
-    )
+    client.add_event_handler(start_explore)
+    client.add_event_handler(stop_explore)
     await client.run_until_disconnected()
 
 async def main():
