@@ -32,7 +32,7 @@ MESSAGES = ["🎲"]
 MIN_DELAY, MAX_DELAY = 6, 7
 
 # Dictionary to manage spam status for each session
-spam_running = {client.session.filename: False for client in clients}
+spam_running = {str(client.session): False for client in clients}
 
 async def send_explore(client):
     """ Sends /explore to bots in the group with randomized delay """
