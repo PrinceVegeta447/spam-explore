@@ -2,70 +2,81 @@ import os
 import asyncio
 import random
 import logging
-import threading
+from flask import Flask, jsonify
 from telethon import TelegramClient, events
-from flask import Flask
-from telethon.sessions import SQLiteSession  # Correct import for SQLiteSession
-from asyncio import Lock
 
-# Configure logging
+# Flask app for health checks
+app = Flask(__name__)
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "running"}), 200
+
+# Logging setup
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
 
-# API Credentials
-API_IDS = 20118977  # Replace with your actual API ID
-API_HASHES = "c88e99dd46c405f7357acef8ccc92f85"
+# Telegram API credentials
+API_ID = 20061115  # Replace with your API ID
+API_HASH = "c30d56d90d59b3efc7954013c580e076"
 
-# Session file paths (should be in your root directory or specify full path)
-SESSION_FILES = [
-    "session_1.session",  # Replace with actual session filenames
-    "session_2.session", 
-    "session_3.session",
-    "session_4.session",
-    "session_5.session"
-]
+# Session files for 5 accounts (store them in the same directory)
+SESSIONS = ["session_1.session", "session_2.session", "session_3.session", "session_4.session", "session_5.session"]
 
-# Initialize clients with SQLiteSession (session files should be in the current directory or full path provided)
-clients = [TelegramClient(SQLiteSession(session_file), API_IDS, API_HASHES) for session_file in SESSION_FILES]
-
-# Group and target chat IDs
-GROUP_ID = -1002348881334
-TARGET = -1002395952299
-
-# Bots to send /explore
+# Target group and bot interactions
+TARGET_GROUP = -1002395952299  # Change as needed
+EXPLORE_GROUP = -1002348881334  # Group where explore commands are sent
 BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot"]
 
-# Spam messages and delay settings
-MESSAGES = ["🎲"]
-MIN_DELAY, MAX_DELAY = 6, 7
+# Spam messages list
+SPAM_MESSAGES = ["🎲"]
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7  # Delay range for spamming
+MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 330  # Delay range for /explore
 
-# States for clients (spamming/exploring)
-client_states = {session_file: {"spamming": False, "exploring": False} for session_file in SESSION_FILES}
+# Spam control flag
+spam_running = False
 
-# Lock to ensure proper sequencing between spam and explore
-spam_lock = Lock()
+# Create clients for multiple sessions
+clients = [TelegramClient(session, API_ID, API_HASH) for session in SESSIONS]
 
-# Manually track session filenames
-session_filename_map = {client: session_file for client, session_file in zip(clients, SESSION_FILES)}
+async def auto_spam(client):
+    """Sends random spam messages in the target group."""
+    global spam_running
+    spam_running = True
+    while spam_running:
+        try:
+            msg = random.choice(SPAM_MESSAGES)
+            await client.send_message(TARGET_GROUP, msg)
+            delay = random.randint(MIN_SPAM_DELAY, MAX_SPAM_DELAY)
+            logging.info(f"Sent: {msg} | Waiting {delay} sec...")
+            await asyncio.sleep(delay)
+        except Exception as e:
+            error_msg = str(e)
+            if "A wait of" in error_msg:  # FloodWait handling
+                wait_time = int(error_msg.split()[3])
+                logging.warning(f"FloodWait triggered! Sleeping for {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                logging.error(f"Unexpected error: {e}")
+                await asyncio.sleep(10)
 
 async def send_explore(client):
-    """ Sends /explore to bots in the group with randomized delay """
-    session_filename = session_filename_map[client]
-    if not client_states[session_filename]["exploring"]:
-        client_states[session_filename]["exploring"] = True
+    """Sends /explore command to bots at regular intervals."""
+    while True:
         for bot in BOTS:
             try:
-                # Send the explore command with delay between requests
-                await client.send_message(GROUP_ID, f"/explore {bot}")
+                await client.send_message(EXPLORE_GROUP, f"/explore {bot}")
                 logging.info(f"Sent /explore to {bot}")
-                await asyncio.sleep(random.randint(310, 330))  # Adjust sleep time as needed
             except Exception as e:
                 logging.error(f"Failed to send /explore to {bot}: {e}")
-        client_states[session_filename]["exploring"] = False
+            delay = random.randint(MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY)
+            logging.info(f"Waiting {delay} seconds before next /explore...")
+            await asyncio.sleep(delay)
 
 async def handle_buttons(event):
-    """ Clicks random inline buttons """
+    """Clicks random inline buttons when bots send messages with buttons."""
     if event.reply_markup and hasattr(event.reply_markup, 'rows'):
         buttons = [btn for row in event.reply_markup.rows for btn in row.buttons if hasattr(btn, "data")]
+
         if buttons:
             button = random.choice(buttons)
             await asyncio.sleep(random.randint(3, 6))
@@ -75,97 +86,28 @@ async def handle_buttons(event):
             except Exception as e:
                 logging.error(f"Failed to click a button: {e}")
 
-async def auto_spam(client):
-    """ Sends messages to the target chat with delay """
-    session_filename = session_filename_map[client]
-    if not client_states[session_filename]["spamming"]:
-        client_states[session_filename]["spamming"] = True
-        while client_states[session_filename]["spamming"]:
-            try:
-                async with spam_lock:  # Ensure only one client sends spam at a time
-                    msg = random.choice(MESSAGES)
-                    await client.send_message(TARGET, msg)
-                    delay = random.randint(MIN_DELAY, MAX_DELAY)
-                    logging.info(f"Sent: {msg} | Waiting {delay} sec...")
-                    await asyncio.sleep(delay)
-            except Exception as e:
-                logging.error(f"Error: {e}")
-                await asyncio.sleep(10)
-        client_states[session_filename]["spamming"] = False
-
-@events.register(events.NewMessage(pattern="/startspam"))
-async def start_spam(event):
-    """ Starts spamming for all clients """
+async def start_clients():
+    """Starts all clients and registers event handlers."""
+    tasks = []
     for client in clients:
-        if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = session_filename_map[client]
-            if not client_states[session_filename]["spamming"]:
-                await event.reply("✅ Auto Spam Started!")
-                asyncio.create_task(auto_spam(client))  # Start spam
-            else:
-                await event.reply("⚠ Spam is already running!")
-
-@events.register(events.NewMessage(pattern="/stopspam"))
-async def stop_spam(event):
-    """ Stops spamming for all clients """
-    for client in clients:
-        if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = session_filename_map[client]
-            client_states[session_filename]["spamming"] = False
-            await event.reply("🛑 Stopping Spam!")
-
-@events.register(events.NewMessage(pattern="/startexplore"))
-async def start_explore(event):
-    """ Starts explore for all clients """
-    for client in clients:
-        if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = session_filename_map[client]
-            if not client_states[session_filename]["exploring"]:
-                await event.reply("✅ Explore Started!")
-                asyncio.create_task(send_explore(client))  # Start explore
-            else:
-                await event.reply("⚠ Explore is already running!")
-
-@events.register(events.NewMessage(pattern="/stopexplore"))
-async def stop_explore(event):
-    """ Stops explore for all clients """
-    for client in clients:
-        if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            session_filename = session_filename_map[client]
-            client_states[session_filename]["exploring"] = False
-            await event.reply("🛑 Stopping Explore!")
-
-async def run_client(client):
-    """ Starts a single client, running spam and explore functions independently """
-    await client.start()
-    client.add_event_handler(handle_buttons, events.NewMessage(chats=GROUP_ID))
-    client.add_event_handler(start_spam)
-    client.add_event_handler(stop_spam)
-    client.add_event_handler(start_explore)
-    client.add_event_handler(stop_explore)
-    await client.run_until_disconnected()
+        await client.start()
+        client.add_event_handler(handle_buttons, events.NewMessage(chats=EXPLORE_GROUP))
+        tasks.append(asyncio.create_task(send_explore(client)))
+    
+    logging.info("All bots started successfully.")
+    await asyncio.gather(*tasks)
 
 async def main():
-    """ Runs all clients concurrently """
-    await asyncio.gather(*[run_client(client) for client in clients])
+    """Main entry point for running bots."""
+    await start_clients()
+    logging.info("Bots are running...")
+    await asyncio.Future()  # Keep running indefinitely
 
-# Flask Health Check
-app = Flask(__name__)
+# Start the Flask health check in the background
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
 
-@app.route("/health")
-def health_check():
-    return {"status": "OK"}
-
-def start_health_server():
-    app.run(host="0.0.0.0", port=8000, threaded=True)
-
-# Start Flask before running the bot
-thread = threading.Thread(target=start_health_server, daemon=True)
-thread.start()
-
-# Ensure Flask starts before running the bot
-import time
-time.sleep(2)
-
-# Run Telegram bot clients
-asyncio.run(main())
+if __name__ == "__main__":
+    import threading
+    threading.Thread(target=run_flask, daemon=True).start()
+    asyncio.run(main())
