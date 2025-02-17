@@ -7,6 +7,7 @@ from telethon import TelegramClient, events
 from fastapi import FastAPI
 import uvicorn
 from telethon.sessions import StringSession
+import time
 
 # Configure logging
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
@@ -32,7 +33,7 @@ MESSAGES = ["🎲"]
 MIN_DELAY, MAX_DELAY = 6, 7
 
 # Dictionary to manage spam status for each session
-spam_running = {str(client.session): False for client in clients}
+spam_running = {str(client.session): False for client in clients}  # ✅ CORRECT
 
 async def send_explore(client):
     """ Sends /explore to bots in the group with randomized delay """
@@ -80,7 +81,7 @@ async def start_spam(event):
     """ Starts spamming """
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            if not spam_running[client.session.filename]:
+            if not spam_running[str(client.session)]:  # ✅ CORRECT
                 await event.reply("✅ Auto Spam Started!")
                 asyncio.create_task(auto_spam(client))
             else:
@@ -91,7 +92,7 @@ async def stop_spam(event):
     """ Stops spamming """
     for client in clients:
         if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:
-            spam_running[client.session.filename] = False
+            spam_running[str(client.session)] = False  # ✅ CORRECT
             await event.reply("🛑 Stopping Spam!")
 
 async def run_client(client):
@@ -119,7 +120,12 @@ def start_health_server():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # Run FastAPI in a separate thread
-threading.Thread(target=start_health_server, daemon=True).start()
+# Run FastAPI in a separate thread
+thread = threading.Thread(target=start_health_server, daemon=True)
+thread.start()
+
+# Delay to ensure FastAPI starts before running main()
+time.sleep(2)
 
 # Run Telegram bot clients
 asyncio.run(main())
