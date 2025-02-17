@@ -7,17 +7,18 @@ from telethon import TelegramClient, events
 from fastapi import FastAPI
 import uvicorn
 from telethon.sessions import StringSession
-from dotenv import load_dotenv
 
-  # Check if it's loaded
 # Configure logging
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
 
-# Load API credentials for 5 accounts
-API_IDS = [int(os.getenv(f"API_ID_{i}")) for i in range(1, 6)]
-API_HASHES = [os.getenv(f"API_HASH_{i}") for i in range(1, 6)]
-SESSION_STRINGS = [os.getenv(f"SESSION_{i}") for i in range(1, 6)]
-clients = [TelegramClient(StringSession(SESSION_STRINGS[i]), API_IDS[i], API_HASHES[i]) for i in range(5)]
+# API Credentials for 5 accounts
+API_IDS =20118977# Replace with your actual API IDs
+API_HASHES ="c88e99dd46c405f7357acef8ccc92f85"]
+
+SESSION_STRINGS ="1BVtsOKEBuyTA1OCMrbwkGgvNVcYbtzwqH-TV-adC-bCYYbrB2Bajeqw4f3eqVfZXewtJqcX9fWkYoiiymlV2_d2ADvhDSFcGt2WhhuYJpIPQHRGX7L1I8wiLrqMAqPpbaEIp2MCrL20OB_rlcN-tUvApc7sOulsUFkbILAodFgyBWeJ9wtn5JIqKHGK0kvHEbYURkAlQtwPlkjQ9Xi4tNTNrTvRRmkp0vIhIWiTj1EhxyVHvH2vYPvdoiGENO1APmJ2zMWQSUfQVgEcOagpHHsfUrwyE2nogOa86IVzcY7c4lBWxsqzQnDV_fcGzi5NFxLheVJHr4viUIdFki2KfodFKJVP0nFs="]  # Replace with actual session strings
+
+# Initialize clients
+clients = [TelegramClient(StringSession(SESSION_STRINGS[i]), API_IDS[i], API_HASHES[i])
 
 # Group and target chat IDs
 GROUP_ID = -1002348881334  # Group where /explore is sent
@@ -29,9 +30,6 @@ BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot"]
 # Spam messages and delay settings
 MESSAGES = ["🎲"]
 MIN_DELAY, MAX_DELAY = 6, 7
-
-# Initialize clients
-clients = [TelegramClient(SESSION_NAMES[i], API_IDS[i], API_HASHES[i]) for i in range(5)]
 
 # Dictionary to manage spam status for each session
 spam_running = {client.session.filename: False for client in clients}
