@@ -29,7 +29,7 @@ BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot"]
 
 # Spam messages list
 SPAM_MESSAGES = ["🎲"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7  # Delay range for spamming
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 8, 9  # Delay range for spamming
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 330  # Delay range for /explore
 
 # Spam control per client
