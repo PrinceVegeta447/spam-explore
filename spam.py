@@ -19,18 +19,20 @@ logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=log
 API_ID = 20061115  # Replace with your API ID
 API_HASH = "c30d56d90d59b3efc7954013c580e076"
 
-# Session files for 5 accounts (store them in the same directory)
-SESSIONS = ["session_1.session", "session_2.session", "session_3.session", "session_4.session", "session_5.session"]
+# Session files for multiple accounts
+SESSIONS = ["session_1.session", "session_3.session", "session_4.session", "session_5.session"]
 
 # Target group and bot interactions
 TARGET_GROUP = -1002395952299  # Change as needed
 EXPLORE_GROUP = -1002348881334  # Group where explore commands are sent
 BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot"]
 
-# Spam messages list
-SPAM_MESSAGES = ["🎲"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 8, 9  # Delay range for spamming
-MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 330  # Delay range for /explore
+# Messages and delays
+SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]  # More variety
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 7, 9  # Increased delay for safety
+MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 325  # More delay for exploration
+BREAK_PROBABILITY = 0.6  # 80% chance of taking a longer break
+BREAK_DURATION = (600, 1200)  # Break time range (10-20 min)
 
 # Spam control per client
 spam_running = {session: False for session in SESSIONS}
@@ -39,26 +41,37 @@ spam_running = {session: False for session in SESSIONS}
 clients = {session: TelegramClient(session, API_ID, API_HASH) for session in SESSIONS}
 
 async def auto_spam(client, session_name):
-    """Sends random spam messages in the target group."""
+    """Sends randomized spam messages with human-like behavior."""
     while spam_running[session_name]:
         try:
             msg = random.choice(SPAM_MESSAGES)
             await client.send_message(TARGET_GROUP, msg)
+            
+            # Mimic human behavior with typing action
+            async with client.action(TARGET_GROUP, "typing"):
+                await asyncio.sleep(random.randint(2, 5))  
+            
             delay = random.randint(MIN_SPAM_DELAY, MAX_SPAM_DELAY)
             logging.info(f"{session_name}: Sent {msg} | Waiting {delay} sec...")
+            
+            if random.random() < BREAK_PROBABILITY:  # Introduce occasional breaks
+                break_time = random.randint(*BREAK_DURATION)
+                logging.info(f"{session_name}: Taking a break for {break_time} sec...")
+                await asyncio.sleep(break_time)
+            
             await asyncio.sleep(delay)
         except Exception as e:
             error_msg = str(e)
             if "A wait of" in error_msg:  # FloodWait handling
-                wait_time = int(error_msg.split()[3])
+                wait_time = int(error_msg.split()[3]) * 2  # Double the wait time
                 logging.warning(f"{session_name}: FloodWait! Sleeping {wait_time} sec...")
                 await asyncio.sleep(wait_time)
             else:
                 logging.error(f"{session_name}: Error - {e}")
-                await asyncio.sleep(10)
+                await asyncio.sleep(20)
 
 async def send_explore(client, session_name):
-    """Sends /explore command to bots at regular intervals."""
+    """Sends /explore command to bots at longer intervals."""
     while True:
         for bot in BOTS:
             try:
@@ -84,13 +97,13 @@ async def handle_buttons(event):
                 logging.error(f"Failed to click button: {e}")
 
 async def start_spam(event, client, session_name):
-    """Starts spam when /startspam is received."""
+    """Starts spam when /startspam is received, ensuring safe limits."""
     global spam_running
     if event.sender_id in [7508462500, 1710597756, 6895497681, 7435756663]:  # Replace with authorized user IDs
         if not spam_running[session_name]:
             spam_running[session_name] = True
             asyncio.create_task(auto_spam(client, session_name))
-            await event.reply("✅ Auto Spam Started!")
+            await event.reply("✅ Safe Auto Spam Started!")
         else:
             await event.reply("⚠ Already Running!")
 
@@ -117,7 +130,7 @@ async def start_clients():
 async def main():
     """Main entry point for running bots."""
     await start_clients()
-    logging.info("Bots are running...")
+    logging.info("Bots are running safely...")
     await asyncio.Future()  # Keep running indefinitely
 
 # Start the Flask health check in the background
