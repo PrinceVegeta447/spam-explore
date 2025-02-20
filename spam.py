@@ -32,7 +32,7 @@ SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]  # More variety
 MIN_SPAM_DELAY, MAX_SPAM_DELAY = 7, 9  # Increased delay for safety
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 325  # More delay for exploration
 BREAK_PROBABILITY = 0.6  # 80% chance of taking a longer break
-BREAK_DURATION = (120, 180)  # Break time range (10-20 min)
+BREAK_DURATION = (30, 60)  # Break time range (10-20 min)
 
 # Spam control per client
 spam_running = {session: False for session in SESSIONS}
