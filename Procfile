@@ -1,1 +1,1 @@
-web: python spam.py
+web: python nw.py
