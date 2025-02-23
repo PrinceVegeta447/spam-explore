@@ -25,7 +25,7 @@ SESSIONS = ["session1.session", "session2.session", "session3.session", "session
 # Target group and bot interactions
 TARGET_GROUP = -1002395952299  # Change as needed
 EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
-BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot", "@CollectCelebrityBot"]
+BOTS = ["@CollectCricketersBot"]
 
 # Messages and delays
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
@@ -73,7 +73,7 @@ async def send_explore(client, session_name):
         if explore_running[session_name]:
             for bot in BOTS:
                 try:
-                    await client.send_message(EXPLORE_GROUP, f"/explore {bot}")
+                    await client.send_message(EXPLORE_GROUP, f"/explore{bot}")
                     logging.info(f"{session_name}: Sent /explore to {bot}")
                 except Exception as e:
                     logging.error(f"{session_name}: Failed to send /explore - {e}")
