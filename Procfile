@@ -1,1 +1,1 @@
-web: python nf.py
+web: python nw.py
