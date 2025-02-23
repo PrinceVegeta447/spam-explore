@@ -88,19 +88,15 @@ async def send_explore(client, session_name):
 async def handle_buttons(event):
     """Clicks all inline buttons when bots send messages with buttons."""
     if event.reply_markup and hasattr(event.reply_markup, 'rows'):
-        buttons = []
         for row in event.reply_markup.rows:
-            for btn in row.buttons:
+            for index, btn in enumerate(row.buttons):
                 if hasattr(btn, "data"):  # Ensure it's an inline button
-                    buttons.append(btn)
-
-        for button in buttons:
-            await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
-            try:
-                await event.click(button.data)  # Click using button's callback data
-                logging.info(f"Clicked a button in response to {event.sender_id}")
-            except Exception as e:
-                logging.error(f"Failed to click a button: {e}")
+                    await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
+                    try:
+                        await event.click(index)  # Click button by its index in the row
+                        logging.info(f"Clicked a button in response to {event.sender_id}")
+                    except Exception as e:
+                        logging.error(f"Failed to click a button: {e}")
 
 
 async def start_spam(event, client, session_name):
