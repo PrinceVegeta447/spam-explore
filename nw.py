@@ -25,7 +25,7 @@ SESSIONS = ["session1.session", "session2.session", "session3.session", "session
 # Target group and bot interactions
 TARGET_GROUP = -1002395952299  # Change as needed
 EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
-BOTS = ["@CollectCricketersBot"]
+BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot", "@CollectCelebrityBot"]
 
 # Messages and delays
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
@@ -82,7 +82,7 @@ async def send_explore(client, session_name):
             logging.info(f"{session_name}: Waiting {delay} sec before next /explore...")
             await asyncio.sleep(delay)
         else:
-            await asyncio.sleep(10)  # Check again after 10 sec if explore is paused
+            await asyncio.sleep(5)  # Check again after 10 sec if explore is paused
 
 async def handle_buttons(event):
     """Clicks a random inline button when bots send messages with buttons."""
@@ -95,7 +95,7 @@ async def handle_buttons(event):
 
         if buttons:
             button = random.choice(buttons)  # Select a random button
-            await asyncio.sleep(random.randint(1, 3))  # Random delay before clicking
+            await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
             try:
                 await event.click(buttons.index(button))  # Click the button
                 logging.info(f"Clicked a button in response to {event.sender_id}")
