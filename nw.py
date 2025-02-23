@@ -77,11 +77,30 @@ async def send_explore(client, session_name):
                     logging.info(f"{session_name}: Sent /explore to {bot}")
                 except Exception as e:
                     logging.error(f"{session_name}: Failed to send /explore - {e}")
+
             delay = random.randint(MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY)
             logging.info(f"{session_name}: Waiting {delay} sec before next /explore...")
             await asyncio.sleep(delay)
         else:
             await asyncio.sleep(10)  # Check again after 10 sec if explore is paused
+
+async def handle_buttons(event):
+    """Clicks a random inline button when bots send messages with buttons."""
+    if event.reply_markup and hasattr(event.reply_markup, 'rows'):
+        buttons = []
+        for row in event.reply_markup.rows:
+            for btn in row.buttons:
+                if hasattr(btn, "data"):  # Ensure it's an inline button
+                    buttons.append(btn)
+
+        if buttons:
+            button = random.choice(buttons)  # Select a random button
+            await asyncio.sleep(random.randint(1, 3))  # Random delay before clicking
+            try:
+                await event.click(buttons.index(button))  # Click the button
+                logging.info(f"Clicked a button in response to {event.sender_id}")
+            except Exception as e:
+                logging.error(f"Failed to click a button: {e}")
 
 async def start_spam(event, client, session_name):
     """Starts spam and pauses explore."""
@@ -108,6 +127,7 @@ async def start_clients():
         await client.start()
         client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
         client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+        client.add_event_handler(handle_buttons, events.NewMessage(from_users=BOTS))  # Handle button clicks from bot responses
         tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
     logging.info("All bots started successfully.")
