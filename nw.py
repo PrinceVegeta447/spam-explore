@@ -28,11 +28,11 @@ TARGET_GROUP = -1002395952299  # Change as needed
 EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
 
 # Messages and delays
-SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 8
-MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 325
-BREAK_PROBABILITY = 0.4
-BREAK_DURATION = (30, 60)
+SPAM_MESSAGES = ["💫", "🔥", "⚡", "💥", "✨", "🎲"]
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7
+MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 305, 310
+BREAK_PROBABILITY = 0.1
+BREAK_DURATION = (10, 20)
 
 # Spam and explore control per client
 spam_running = {session: False for session in SESSIONS}
@@ -104,7 +104,7 @@ async def start_spam(event, client, session_name):
             spam_running[session_name] = True
             explore_running[session_name] = False  # Pause explore
             asyncio.create_task(auto_spam(client, session_name))
-            await event.reply("✅ Safe Auto Spam Started! (Explore Paused)")
+            await event.reply("✅ Auto Spam Started! (Explore Paused)")
         else:
             await event.reply("⚠ Already Running!")
 
@@ -120,8 +120,8 @@ async def start_clients():
     tasks = []
     for session_name, client in clients.items():
         await client.start()
-        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
-        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="?startspam"))
+        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="?stopspam"))
         client.add_event_handler(handle_buttons, events.NewMessage())  # Handle button clicks only in explore group
         tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
