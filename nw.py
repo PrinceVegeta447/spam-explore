@@ -25,7 +25,7 @@ SESSIONS = ["session1.session", "session2.session", "session3.session", "session
 # Target group and bot interactions
 TARGET_GROUP = -1002395952299  # Change as needed
 EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
-BOTS = ["@CollectCricketersBot"]
+BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot", " @CollectCelebrityBot"]
 
 # Messages and delays
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
@@ -86,18 +86,21 @@ async def send_explore(client, session_name):
 # Check again after 10 sec if explore is paused
 
 async def handle_buttons(event):
-    """Clicks all inline buttons when bots send messages with buttons."""
-    if event.reply_markup and hasattr(event.reply_markup, 'rows'):
+    """Clicks all inline buttons in messages from any of the bots."""
+    if event.sender.username in BOTS and event.reply_markup and hasattr(event.reply_markup, 'rows'):
         for row in event.reply_markup.rows:
             for index, btn in enumerate(row.buttons):
                 if hasattr(btn, "data"):  # Ensure it's an inline button
                     await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
                     try:
-                        await event.click(index)  # Click button by its index in the row
-                        logging.info(f"Clicked a button in response to {event.sender_id}")
+                        await event.click(index)  # Click button by index
+                        logging.info(f"Clicked a button from {event.sender.username}")
                     except Exception as e:
-                        logging.error(f"Failed to click a button: {e}")
+                        logging.error(f"Failed to click a button from {event.sender.username}: {e}")
 
+# Ensure event handler listens to messages from all bots
+for session_name, client in clients.items():
+    client.add_event_handler(handle_buttons, events.NewMessage(from_users=BOTS))  # Listen for all bot messages
 
 async def start_spam(event, client, session_name):
     """Starts spam and pauses explore."""
