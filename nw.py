@@ -82,25 +82,20 @@ async def send_explore(client, session_name):
             logging.info(f"{session_name}: Waiting {delay} sec before next /explore...")
             await asyncio.sleep(delay)
         else:
-            await asyncio.sleep(5)  # Check again after 10 sec if explore is paused
-
+            await asyncio.sleep(5)
+            # Check again after 10 sec if explore is paused
 async def handle_buttons(event):
-    """Clicks a random inline button when bots send messages with buttons."""
+    """Clicks all inline buttons when bots send messages with buttons."""
     if event.reply_markup and hasattr(event.reply_markup, 'rows'):
-        buttons = []
         for row in event.reply_markup.rows:
             for btn in row.buttons:
                 if hasattr(btn, "data"):  # Ensure it's an inline button
-                    buttons.append(btn)
-
-        if buttons:
-            button = random.choice(buttons)  # Select a random button
-            await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
-            try:
-                await event.click(buttons.index(button))  # Click the button
-                logging.info(f"Clicked a button in response to {event.sender_id}")
-            except Exception as e:
-                logging.error(f"Failed to click a button: {e}")
+                    await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
+                    try:
+                        await event.click(btn)  # Click the button
+                        logging.info(f"Clicked a button in response to {event.sender_id}")
+                    except Exception as e:
+                        logging.error(f"Failed to click a button: {e}")
 
 async def start_spam(event, client, session_name):
     """Starts spam and pauses explore."""
