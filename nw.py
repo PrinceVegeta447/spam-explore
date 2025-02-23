@@ -97,9 +97,6 @@ async def handle_buttons(event):
                 logging.info(f"Clicked a button in response to {event.sender_id}")
             except Exception as e:
                 logging.error(f"Failed to click button: {e}")
-# Ensure event handler listens to messages from all bots
-for session_name, client in clients.items():
-    client.add_event_handler(handle_buttons, events.NewMessage(from_users=BOTS))  # Listen for all bot messages
 
 async def start_spam(event, client, session_name):
     """Starts spam and pauses explore."""
