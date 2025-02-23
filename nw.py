@@ -84,8 +84,8 @@ async def send_explore(client, session_name):
             await asyncio.sleep(5)  # Check again after 5 sec if explore is paused
 
 async def handle_buttons(event):
-    """Clicks a random inline button in user replies."""
-    if event.reply_markup and hasattr(event.reply_markup, 'rows'):
+    """Clicks a random inline button only in the explore group."""
+    if event.chat_id == EXPLORE_GROUP and event.reply_markup and hasattr(event.reply_markup, 'rows'):
         buttons = [btn for row in event.reply_markup.rows for btn in row.buttons if hasattr(btn, "data")]
 
         if buttons:
@@ -93,7 +93,7 @@ async def handle_buttons(event):
             await asyncio.sleep(random.randint(2, 5))  # Random delay before clicking
             try:
                 await event.click(buttons.index(button))
-                logging.info(f"Clicked a button in response to {event.sender_id}")
+                logging.info(f"Clicked a button in response to {event.sender_id} in explore group")
             except Exception as e:
                 logging.error(f"Failed to click a button: {e}")
 
@@ -122,7 +122,7 @@ async def start_clients():
         await client.start()
         client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
         client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
-        client.add_event_handler(handle_buttons, events.NewMessage())  # Handle button clicks in all messages
+        client.add_event_handler(handle_buttons, events.NewMessage())  # Handle button clicks only in explore group
         tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
     logging.info("All bots started successfully.")  
@@ -141,4 +141,3 @@ def run_flask():
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
     asyncio.run(main())
-    
