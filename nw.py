@@ -73,7 +73,7 @@ async def send_explore(client, session_name):
         if explore_running[session_name]:
             for bot in BOTS:
                 try:
-                    await client.send_message(EXPLORE_GROUP, f"/explore{bot}")
+                    await client.send_message(EXPLORE_GROUP, f"/explore {bot}")
                     logging.info(f"{session_name}: Sent /explore to {bot}")
                 except Exception as e:
                     logging.error(f"{session_name}: Failed to send /explore - {e}")
