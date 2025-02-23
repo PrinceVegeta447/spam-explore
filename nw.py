@@ -25,7 +25,7 @@ SESSIONS = ["session1.session", "session2.session", "session3.session", "session
 # Target group and bot interactions
 TARGET_GROUP = -1002395952299  # Change as needed
 EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
-BOTS = ["@CollectCricketersBot", "@CollectYourPlayerxBot", " @CollectCelebrityBot"]
+BOTS = ["@CollectCricketersBot"]
 
 # Messages and delays
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
