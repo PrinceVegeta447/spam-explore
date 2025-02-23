@@ -120,8 +120,8 @@ async def start_clients():
     tasks = []
     for session_name, client in clients.items():
         await client.start()
-        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="?startspam"))
-        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="?stopspam"))
+        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="\?startspam"))
+        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="\?stopspam"))
         client.add_event_handler(handle_buttons, events.NewMessage())  # Handle button clicks only in explore group
         tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
