@@ -74,23 +74,38 @@ async def auto_spam(client, session_name):
 explore_running = {session: True for session in SESSIONS}  # Set all sessions to active
 async def send_explore(client, session_name):
     """Sends /explore command only when exploring is active."""
+    global explore_running  
+
     while True:
-        if explore_running[session_name]:
+        logging.info(f"{session_name}: Checking if exploration is enabled...")
+        
+        if explore_running.get(session_name, False):
             try:
+                logging.info(f"{session_name}: Attempting to send /explore")
                 await client.send_message(EXPLORE_GROUP, "/explore")
-                logging.info(f"{session_name}: Sent /explore")
+                logging.info(f"{session_name}: Sent /explore successfully")
             except Exception as e:
-                logging.error(f"{session_name}: Failed to send /explore - {e}")
+                error_msg = str(e)
+                if "A wait of" in error_msg:
+                    wait_time = int(error_msg.split()[3]) * 2  
+                    logging.warning(f"{session_name}: FloodWait! Sleeping {wait_time} sec...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logging.error(f"{session_name}: Failed to send /explore - {e}")
+                    await asyncio.sleep(10)
 
             delay = random.randint(MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY)
             logging.info(f"{session_name}: Waiting {delay} sec before next /explore...")
             await asyncio.sleep(delay)
         else:
-            await asyncio.sleep(5)  # Check again after 5 sec if explore is paused
+            logging.info(f"{session_name}: Explore is paused. Checking again in 5 sec...")
+            await asyncio.sleep(5)
 
 
 async def handle_buttons(event):
     """Clicks a random inline button only in the explore group."""
+    logging.info(f"Received a message in {event.chat_id} with buttons.")
+    
     if event.chat_id == EXPLORE_GROUP and event.reply_markup and hasattr(event.reply_markup, 'rows'):
         buttons = [btn for row in event.reply_markup.rows for btn in row.buttons if hasattr(btn, "data")]
 
@@ -102,6 +117,9 @@ async def handle_buttons(event):
                 logging.info(f"Clicked a button in response to {event.sender_id} in explore group")
             except Exception as e:
                 logging.error(f"Failed to click a button: {e}")
+    else:
+        logging.info(f"Message received but no buttons detected: {event.raw_text}")
+
                 
 async def start_spam(event, client, session_name):
     """Starts spam when /startspam is received, ensuring safe limits."""
@@ -127,13 +145,18 @@ async def start_clients():
     tasks = []
     for session_name, client in clients.items():
         await client.start()
-        
-        client.add_event_handler(handle_buttons, events.NewMessage(chats=EXPLORE_GROUP))
-        client.add_event_handler(start_spam, events.NewMessage(pattern="/startspam"))
-        client.add_event_handler(stop_spam, events.NewMessage(pattern="/stopspam"))
+        logging.info(f"{session_name}: Client started and connected.")
 
-        # Pass the session name explicitly
-        tasks.append(asyncio.create_task(send_explore(client, session_name)))
+        # Register event handlers
+        client.add_event_handler(handle_buttons, events.NewMessage(chats=EXPLORE_GROUP))
+        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
+        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+        
+        logging.info(f"{session_name}: Event handlers registered.")
+
+        # Start the explore function
+        task = asyncio.create_task(send_explore(client, session_name))
+        tasks.append(task)
     
     logging.info("All bots started successfully.")
     await asyncio.gather(*tasks)
