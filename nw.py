@@ -4,6 +4,7 @@ import random
 import logging
 from flask import Flask, jsonify
 from telethon import TelegramClient, events
+from threading import Event
 
 # Flask app for health checks
 app = Flask(__name__)
@@ -68,7 +69,8 @@ async def auto_spam(client, session_name):
             else:
                 logging.error(f"{session_name}: Error - {e}")
                 await asyncio.sleep(20)
-
+                
+explore_running = {session: True for session in SESSIONS}  # Set all sessions to active
 async def send_explore(client, session_name):
     """Sends /explore command only when exploring is active."""
     while True:
@@ -118,18 +120,23 @@ async def stop_spam(event, session_name):
         spam_running[session_name] = False
         await event.reply("🛑 Stopping Spam!")
 
+
 async def start_clients():
     """Starts all clients and registers event handlers."""
     tasks = []
     for session_name, client in clients.items():
         await client.start()
+        
         client.add_event_handler(handle_buttons, events.NewMessage(chats=EXPLORE_GROUP))
-        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
-        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+        client.add_event_handler(start_spam, events.NewMessage(pattern="/startspam"))
+        client.add_event_handler(stop_spam, events.NewMessage(pattern="/stopspam"))
+
+        # Pass the session name explicitly
         tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
     logging.info("All bots started successfully.")
     await asyncio.gather(*tasks)
+    
 
 async def main():
     """Main entry point for running bots."""
@@ -137,11 +144,14 @@ async def main():
     logging.info("Bots are running safely...")
     await asyncio.Future()  # Keep running indefinitely
 
-# Start the Flask health check in the background
+# Start the Flask health check in the bac
+
 def run_flask():
     app.run(host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
-    import threading
-    threading.Thread(target=run_flask, daemon=True).start()
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    stop_event = Event()
     asyncio.run(main())
