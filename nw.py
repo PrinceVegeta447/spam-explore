@@ -30,8 +30,8 @@ EXPLORE_GROUP = -1002348881334  # Group where explore commands are sent
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]  # More variety
 MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 8  # Increased delay for safety
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 310, 325  # More delay for exploration
-BREAK_PROBABILITY = 0.4  # 80% chance of taking a longer break
-BREAK_DURATION = (30, 60)  # Break time range (10-20 min)
+BREAK_PROBABILITY = 0.1  # 80% chance of taking a longer break
+BREAK_DURATION = (10, 20)  # Break time range (10-20 min)
 
 # Spam control per client
 spam_running = {session: False for session in SESSIONS}
