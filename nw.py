@@ -1,4 +1,4 @@
-import os
+freeimport os
 import asyncio
 import random
 import logging
@@ -26,7 +26,7 @@ SESSIONS = ["session1.session", "session3.session", "session4.session", "session
 
 # Target group and bot interactions
 TARGET_GROUP = -1002395952299  # Change as needed
-EXPLORE_GROUP = -1002348881334  # Group where explore commands are sent
+EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
 
 # Messages and delays
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]  # More variety
@@ -72,17 +72,14 @@ async def auto_spam(client, session_name):
                 await asyncio.sleep(20)
                 
 explore_running = {session: True for session in SESSIONS}  # Set all sessions to active
-async def send_explore(client, session_name):
-    """Sends /explore command only when exploring is active."""
+async def send_explore(client, session_name, explore_entity):
     global explore_running  
-
     while True:
         logging.info(f"{session_name}: Checking if exploration is enabled...")
-        
         if explore_running.get(session_name, False):
             try:
                 logging.info(f"{session_name}: Attempting to send /explore")
-                await client.send_message(EXPLORE_GROUP, "/explore")
+                await client.send_message(explore_entity, "/explore")
                 logging.info(f"{session_name}: Sent /explore successfully")
             except Exception as e:
                 error_msg = str(e)
@@ -141,25 +138,27 @@ async def stop_spam(event, session_name):
 
 
 async def start_clients():
-    """Starts all clients and registers event handlers."""
     tasks = []
     for session_name, client in clients.items():
         await client.start()
-        logging.info(f"{session_name}: Client started and connected.")
+        # Resolve the explore group entity once
+        try:
+            explore_entity = await client.get_entity(EXPLORE_GROUP)
+            logging.info(f"{session_name}: Resolved explore entity: {explore_entity.title}")
+        except Exception as e:
+            logging.error(f"{session_name}: Failed to resolve explore entity - {e}")
+            continue  # Skip this client if resolution fails
 
-        # Register event handlers
+        # Register event handlers as before
         client.add_event_handler(handle_buttons, events.NewMessage(chats=EXPLORE_GROUP))
         client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
         client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
-        
+        tasks.append(asyncio.create_task(send_explore(client, session_name, explore_entity)))
         logging.info(f"{session_name}: Event handlers registered.")
 
-        # Start the explore function
-        task = asyncio.create_task(send_explore(client, session_name))
-        tasks.append(task)
-    
     logging.info("All bots started successfully.")
     await asyncio.gather(*tasks)
+
     
 
 async def main():
