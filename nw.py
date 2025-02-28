@@ -29,7 +29,7 @@ EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
 
 # Messages and delays
 SPAM_MESSAGES = ["💫", "🔥", "⚡", "💥", "✨", "🎲"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 4, 7
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 305, 310
 BREAK_PROBABILITY = 0.1
 BREAK_DURATION = (10, 20)
@@ -120,8 +120,8 @@ async def start_clients():
     tasks = []
     for session_name, client in clients.items():
         await client.start()
-        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern=r"\?startspam"))
-        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern=r"\?stopspam"))
+        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="\?startspam"))
+        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="\?stopspam"))
         client.add_event_handler(handle_buttons, events.NewMessage())  # Handle button clicks only in explore group
         tasks.append(asyncio.create_task(send_explore(client, session_name)))
     
@@ -136,12 +136,8 @@ async def main():
 
 # Start the Flask health check in the background
 def run_flask():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(app.run(host="0.0.0.0", port=8000))
+    app.run(host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(main())
+    asyncio.run(main())
