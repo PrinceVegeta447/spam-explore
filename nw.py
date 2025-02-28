@@ -21,7 +21,7 @@ API_ID = 20061115  # Replace with your API ID
 API_HASH = "c30d56d90d59b3efc7954013c580e076"
 
 # Session files for multiple accounts
-SESSIONS = ["session1.session", "session2.session", "session3.session", "session4.session", "session5.session", "session6.session", "session7.session"]
+SESSIONS = ["session1.session", "session2.session", "session3.session", "session4.session", "session5.session", "session6.session", "session7.session", "session8.session", "session9.session"]
 
 # Target group and explore group
 TARGET_GROUP = -1002395952299  # Change as needed
@@ -29,7 +29,7 @@ EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
 
 # Messages and delays
 SPAM_MESSAGES = ["💫", "🔥", "⚡", "💥", "✨", "🎲"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 5, 4
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 305, 310
 BREAK_PROBABILITY = 0.1
 BREAK_DURATION = (10, 20)
