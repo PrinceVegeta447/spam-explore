@@ -136,7 +136,9 @@ async def main():
 
 # Start the Flask health check in the background
 def run_flask():
-    app.run(host="0.0.0.0", port=8000)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app.run(host="0.0.0.0", port=8000))
 
 if __name__ == "__main__":
     threading.Thread(target=run_flask, daemon=True).start()
