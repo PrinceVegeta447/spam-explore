@@ -29,7 +29,7 @@ EXPLORE_GROUP = -1002377798958  # Group where explore commands are sent
 
 # Messages and delays
 SPAM_MESSAGES = ["💫", "🔥", "⚡", "💥", "✨", "🎲"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 5, 4
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 4, 7
 MIN_EXPLORE_DELAY, MAX_EXPLORE_DELAY = 305, 310
 BREAK_PROBABILITY = 0.1
 BREAK_DURATION = (10, 20)
