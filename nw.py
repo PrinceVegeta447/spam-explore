@@ -159,7 +159,16 @@ async def start_clients():
     logging.info("All bots started successfully.")
     await asyncio.gather(*tasks)
 
-    
+
+
+app = Flask(__name__)
+
+@app.route('/')
+def health_check():
+    return "OK", 200
+
+def run_flask():
+    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
 
 async def main():
     """Main entry point for running bots."""
@@ -167,14 +176,12 @@ async def main():
     logging.info("Bots are running safely...")
     await asyncio.Future()  # Keep running indefinitely
 
-# Start the Flask health check in the bac
-
-def run_flask():
-    app.run(host="0.0.0.0", port=8000)
-
 if __name__ == "__main__":
+    # Start Flask in a separate thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    stop_event = Event()
-    asyncio.run(main())
+    # Run the bot in the existing event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
