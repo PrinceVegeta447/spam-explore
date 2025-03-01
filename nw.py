@@ -6,6 +6,7 @@ import threading
 from flask import Flask, jsonify
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.errors import FloodWaitError
 
 # Flask app for health check
 app = Flask(__name__)
@@ -18,7 +19,7 @@ def health_check():
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
 
 # Telegram API credentials (same for all sessions)
-API_ID = 20061115  # Replace with your API ID
+API_ID = 20061115
 API_HASH = "c30d56d90d59b3efc7954013c580e076"
 
 # Fetch session strings from environment variables
@@ -51,13 +52,13 @@ BREAK_DURATION = (3, 4)
 
 # Track spam state
 spam_running = {session: False for session in clients}
+spam_tasks = {}
 
 # Admins who can control spam
 AUTHORIZED_USERS = [7508462500, 1710597756, 6895497681, 7435756663]
 
-
 async def auto_spam(client, session_name):
-    """Sends randomized spam messages with human-like behavior."""
+    """Handles sending spam messages with delays and flood wait handling."""
     while spam_running[session_name]:
         try:
             msg = random.choice(SPAM_MESSAGES)
@@ -77,65 +78,91 @@ async def auto_spam(client, session_name):
 
             await asyncio.sleep(delay)
 
+        except FloodWaitError as e:
+            logging.warning(f"{session_name}: FloodWait! Sleeping {e.seconds}s...")
+            await asyncio.sleep(e.seconds)
         except Exception as e:
-            error_msg = str(e)
-            if "A wait of" in error_msg:  # FloodWait handling
-                wait_time = int(error_msg.split()[3]) * 2
-                logging.warning(f"{session_name}: FloodWait! Sleeping {wait_time} sec...")
-                asyncio.create_task(auto_spam(client, session_name))  # Restart spam in the background
-                break  # Stop current loop iteration
-            else:
-                logging.error(f"{session_name}: Error - {e}")
-                await asyncio.sleep(20)
-
+            logging.error(f"{session_name}: Error - {e}")
+            await asyncio.sleep(20)
 
 
 async def start_spam(event, client, session_name):
-    """Starts spam when /startspam is received."""
+    """Starts spamming when /startspam is received."""
     if event.sender_id in AUTHORIZED_USERS:
         logging.info(f"{session_name}: Received /startspam from {event.sender_id}")
         if not spam_running[session_name]:
             spam_running[session_name] = True
-            asyncio.create_task(auto_spam(client, session_name))
+            spam_tasks[session_name] = asyncio.create_task(auto_spam(client, session_name))
             await event.reply("✅ Auto Spam Started!")
         else:
             await event.reply("⚠ Already Running!")
 
 
 async def stop_spam(event, session_name):
-    """Stops spam when /stopspam is received."""
+    """Stops spamming when /stopspam is received."""
     if event.sender_id in AUTHORIZED_USERS:
         logging.info(f"{session_name}: Received /stopspam from {event.sender_id}")
         spam_running[session_name] = False
+        if session_name in spam_tasks:
+            spam_tasks[session_name].cancel()
+            del spam_tasks[session_name]
         await event.reply("🛑 Stopping Spam!")
 
 
-async def start_clients():
-    """Starts all clients, registers event handlers, and starts spamming."""
+async def ensure_clients_connected():
+    """Reconnects any disconnected clients."""
     for session_name, client in clients.items():
-        await client.start()
-        logging.info(f"{session_name}: Logged in successfully!")
+        if not client.is_connected():
+            logging.warning(f"{session_name}: Disconnected, reconnecting...")
+            try:
+                await client.connect()
+                logging.info(f"{session_name}: Reconnected successfully!")
+            except Exception as e:
+                logging.error(f"{session_name}: Failed to reconnect - {e}")
 
-        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
-        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
 
-        # Automatically start spam for each client (remove if you want manual control)
-        spam_running[session_name] = True
-        asyncio.create_task(auto_spam(client, session_name))
+async def start_clients():
+    """Starts all clients, registers event handlers, and starts spam."""
+    for session_name, client in clients.items():
+        try:
+            await client.start()
+            logging.info(f"{session_name}: Logged in successfully!")
 
-        logging.info(f"{session_name}: Event handlers registered and spamming started.")
+            client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
+            client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+
+            logging.info(f"{session_name}: Event handlers registered.")
+
+        except Exception as e:
+            logging.error(f"{session_name}: Failed to start - {e}")
 
     logging.info("✅ All bots started successfully.")
+
+async def restart_spam():
+    """Stops and restarts spam safely."""
+    logging.info("🛑 Stopping spam...")
+    for session_name in spam_running:
+        spam_running[session_name] = False
+
+    await asyncio.sleep(5)  # Small delay before restarting
+
+    logging.info("♻ Restarting spam...")
+    for session_name, client in clients.items():
+        spam_running[session_name] = True
+        spam_tasks[session_name] = asyncio.create_task(auto_spam(client, session_name))
+
+async def monitor_clients():
+    """Background task to ensure clients stay connected."""
+    while True:
+        await asyncio.sleep(30)  # Check every 30 seconds
+        await ensure_clients_connected()
+
 
 async def main():
     """Main entry point for running bots."""
     await start_clients()
-    logging.info("Bots are running safely...")
-
-    # Ensure all spam tasks run concurrently
-    await asyncio.gather(*(auto_spam(client, session_name) for session_name, client in clients.items()))
-
-    await asyncio.Future()  # Keep running indefinitely  # Keep running indefinitely
+    asyncio.create_task(monitor_clients())  # Start monitoring clients
+    await asyncio.Future()  # Keep running indefinitely
 
 
 def run_flask():
