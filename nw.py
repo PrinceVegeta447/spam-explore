@@ -64,14 +64,12 @@ async def auto_spam(client, session_name):
             await client.send_message(TARGET_GROUP, msg)
             logging.info(f"{session_name}: Sent {msg}")
 
-            # Simulate human behavior with typing
             async with client.action(TARGET_GROUP, "typing"):
                 await asyncio.sleep(random.randint(2, 5))
 
             delay = random.randint(MIN_SPAM_DELAY, MAX_SPAM_DELAY)
             logging.info(f"{session_name}: Waiting {delay} sec before next message...")
 
-            # Random break to mimic human behavior
             if random.random() < BREAK_PROBABILITY:
                 break_time = random.randint(*BREAK_DURATION)
                 logging.info(f"{session_name}: Taking a break for {break_time} sec...")
@@ -84,10 +82,12 @@ async def auto_spam(client, session_name):
             if "A wait of" in error_msg:  # FloodWait handling
                 wait_time = int(error_msg.split()[3]) * 2
                 logging.warning(f"{session_name}: FloodWait! Sleeping {wait_time} sec...")
-                await asyncio.sleep(wait_time)
+                asyncio.create_task(auto_spam(client, session_name))  # Restart spam in the background
+                break  # Stop current loop iteration
             else:
                 logging.error(f"{session_name}: Error - {e}")
                 await asyncio.sleep(20)
+
 
 
 async def start_spam(event, client, session_name):
@@ -111,7 +111,7 @@ async def stop_spam(event, session_name):
 
 
 async def start_clients():
-    """Starts all clients and registers event handlers."""
+    """Starts all clients, registers event handlers, and starts spamming."""
     for session_name, client in clients.items():
         await client.start()
         logging.info(f"{session_name}: Logged in successfully!")
@@ -119,16 +119,23 @@ async def start_clients():
         client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
         client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
 
-        logging.info(f"{session_name}: Event handlers registered.")
+        # Automatically start spam for each client (remove if you want manual control)
+        spam_running[session_name] = True
+        asyncio.create_task(auto_spam(client, session_name))
+
+        logging.info(f"{session_name}: Event handlers registered and spamming started.")
 
     logging.info("✅ All bots started successfully.")
-
 
 async def main():
     """Main entry point for running bots."""
     await start_clients()
     logging.info("Bots are running safely...")
-    await asyncio.Future()  # Keep running indefinitely
+
+    # Ensure all spam tasks run concurrently
+    await asyncio.gather(*(auto_spam(client, session_name) for session_name, client in clients.items()))
+
+    await asyncio.Future()  # Keep running indefinitely  # Keep running indefinitely
 
 
 def run_flask():
