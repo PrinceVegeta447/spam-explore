@@ -21,14 +21,14 @@ API_ID = 20061115  # Replace with your API ID
 API_HASH = "c30d56d90d59b3efc7954013c580e076"
 
 # Session files
-SESSIONS = ["session1.session", "session2.session", "session3.session", "session4.session", "session5.session", "session6.session", "session7.session", "session8.session"]
+SESSIONS = ["session1.session", "session2.session", "session3.session", "session4.session", "session5.session", "session6.session", "session7.session", "session8.session", "session9.session"]
 
 # Target group
 TARGET_GROUP = -1002395952299  # Change as needed
 
 # Spam messages and delays
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
-MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 8
+MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7
 BREAK_PROBABILITY = 0.1  # 10% chance to take a break
 BREAK_DURATION = (10, 20)
 
