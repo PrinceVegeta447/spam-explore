@@ -6,7 +6,6 @@ import threading
 from flask import Flask, jsonify
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
-from telethon.errors import FloodWaitError
 
 # Flask app for health check
 app = Flask(__name__)
@@ -19,7 +18,7 @@ def health_check():
 logging.basicConfig(format="[%(asctime)s] %(levelname)s: %(message)s", level=logging.INFO)
 
 # Telegram API credentials (same for all sessions)
-API_ID = 20061115
+API_ID = 20061115  # Replace with your API ID
 API_HASH = "c30d56d90d59b3efc7954013c580e076"
 
 # Fetch session strings from environment variables
@@ -50,23 +49,21 @@ MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7
 BREAK_PROBABILITY = 0.1  # 10% chance to take a break
 BREAK_DURATION = (3, 4)
 
-# Track spam state
+# Track spam state and tasks
 spam_running = {session: False for session in clients}
-spam_tasks = {}
+spam_tasks = {session: None for session in clients}
 
 # Admins who can control spam
 AUTHORIZED_USERS = [7508462500, 1710597756, 6895497681, 7435756663]
 
+
 async def auto_spam(client, session_name):
-    """Handles sending spam messages with delays and flood wait handling."""
+    """Sends randomized spam messages with human-like behavior."""
     while spam_running[session_name]:
         try:
             msg = random.choice(SPAM_MESSAGES)
             await client.send_message(TARGET_GROUP, msg)
             logging.info(f"{session_name}: Sent {msg}")
-
-            async with client.action(TARGET_GROUP, "typing"):
-                await asyncio.sleep(random.randint(2, 5))
 
             delay = random.randint(MIN_SPAM_DELAY, MAX_SPAM_DELAY)
             logging.info(f"{session_name}: Waiting {delay} sec before next message...")
@@ -78,90 +75,79 @@ async def auto_spam(client, session_name):
 
             await asyncio.sleep(delay)
 
-        except FloodWaitError as e:
-            logging.warning(f"{session_name}: FloodWait! Sleeping {e.seconds}s...")
-            await asyncio.sleep(e.seconds)
         except Exception as e:
-            logging.error(f"{session_name}: Error - {e}")
-            await asyncio.sleep(20)
+            error_msg = str(e)
+            if "A wait of" in error_msg:  # FloodWait handling
+                wait_time = int(error_msg.split()[3]) * 2
+                logging.warning(f"{session_name}: FloodWait! Sleeping {wait_time} sec...")
+                await asyncio.sleep(wait_time)
+            else:
+                logging.error(f"{session_name}: Error - {e}")
+                await asyncio.sleep(5)
 
 
 async def start_spam(event, client, session_name):
-    """Starts spamming when /startspam is received."""
+    """Starts spam when /startspam is received."""
     if event.sender_id in AUTHORIZED_USERS:
         logging.info(f"{session_name}: Received /startspam from {event.sender_id}")
+
         if not spam_running[session_name]:
             spam_running[session_name] = True
-            spam_tasks[session_name] = asyncio.create_task(auto_spam(client, session_name))
+            if spam_tasks[session_name] is None or spam_tasks[session_name].done():
+                spam_tasks[session_name] = asyncio.create_task(auto_spam(client, session_name))
             await event.reply("✅ Auto Spam Started!")
         else:
             await event.reply("⚠ Already Running!")
 
 
 async def stop_spam(event, session_name):
-    """Stops spamming when /stopspam is received."""
+    """Stops spam when /stopspam is received."""
     if event.sender_id in AUTHORIZED_USERS:
         logging.info(f"{session_name}: Received /stopspam from {event.sender_id}")
         spam_running[session_name] = False
-        if session_name in spam_tasks:
+        if spam_tasks[session_name]:
             spam_tasks[session_name].cancel()
-            del spam_tasks[session_name]
+            spam_tasks[session_name] = None
         await event.reply("🛑 Stopping Spam!")
 
 
-async def ensure_clients_connected():
-    """Reconnects any disconnected clients."""
-    for session_name, client in clients.items():
-        if not client.is_connected():
-            logging.warning(f"{session_name}: Disconnected, reconnecting...")
-            try:
-                await client.connect()
-                logging.info(f"{session_name}: Reconnected successfully!")
-            except Exception as e:
-                logging.error(f"{session_name}: Failed to reconnect - {e}")
-
-
 async def start_clients():
-    """Starts all clients, registers event handlers, and starts spam."""
+    """Starts all clients, registers event handlers, and manages spam properly."""
     for session_name, client in clients.items():
-        try:
-            await client.start()
-            logging.info(f"{session_name}: Logged in successfully!")
+        await client.start()
+        logging.info(f"{session_name}: Logged in successfully!")
 
-            client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
-            client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
+        client.add_event_handler(lambda event, c=client, s=session_name: start_spam(event, c, s), events.NewMessage(pattern="/startspam"))
+        client.add_event_handler(lambda event, s=session_name: stop_spam(event, s), events.NewMessage(pattern="/stopspam"))
 
-            logging.info(f"{session_name}: Event handlers registered.")
-
-        except Exception as e:
-            logging.error(f"{session_name}: Failed to start - {e}")
+        logging.info(f"{session_name}: Event handlers registered.")
 
     logging.info("✅ All bots started successfully.")
 
-async def restart_spam():
-    """Stops and restarts spam safely."""
-    logging.info("🛑 Stopping spam...")
-    for session_name in spam_running:
-        spam_running[session_name] = False
 
-    await asyncio.sleep(5)  # Small delay before restarting
-
-    logging.info("♻ Restarting spam...")
-    for session_name, client in clients.items():
-        spam_running[session_name] = True
-        spam_tasks[session_name] = asyncio.create_task(auto_spam(client, session_name))
-
-async def monitor_clients():
-    """Background task to ensure clients stay connected."""
+async def restart_disconnected_clients():
+    """Checks if clients are disconnected and restarts them automatically."""
     while True:
+        for session_name, client in clients.items():
+            if not await client.is_user_authorized():
+                logging.warning(f"{session_name}: Disconnected! Restarting...")
+                try:
+                    await client.connect()
+                    if not await client.is_user_authorized():
+                        logging.error(f"{session_name}: Reconnection failed.")
+                    else:
+                        logging.info(f"{session_name}: Reconnected successfully!")
+                except Exception as e:
+                    logging.error(f"{session_name}: Reconnection error - {e}")
+
         await asyncio.sleep(30)  # Check every 30 seconds
-        await ensure_clients_connected()
 
 
 async def main():
     """Main entry point for running bots."""
     await start_clients()
-    asyncio.create_task(monitor_clients())  # Start monitoring clients
+    asyncio.create_task(restart_disconnected_clients())
+
     await asyncio.Future()  # Keep running indefinitely
 
 
