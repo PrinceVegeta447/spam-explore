@@ -47,7 +47,7 @@ TARGET_GROUP = -1002395952299  # Change as needed
 SPAM_MESSAGES = ["🎲", "🔥", "⚡", "💥", "✨"]
 MIN_SPAM_DELAY, MAX_SPAM_DELAY = 6, 7
 BREAK_PROBABILITY = 0.1  # 10% chance to take a break
-BREAK_DURATION = (10, 20)
+BREAK_DURATION = (3, 4)
 
 # Track spam state
 spam_running = {session: False for session in clients}
