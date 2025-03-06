@@ -29,7 +29,7 @@ SESSION_STRINGS = [s for s in SESSION_STRINGS if s]  # Remove None values
 clients = {f"Session{i+1}": TelegramClient(StringSession(s), API_ID, API_HASH) for i, s in enumerate(SESSION_STRINGS)}
 
 # Target groups
-SPAM_GROUP_ID = -1002395952299 # Change as needed
+SPAM_GROUP_ID = -1002258939999 # Change as needed
 EXPLORE_GROUP_ID = -1002377798958 # Change as needed
 
 # Spam settings
@@ -45,7 +45,7 @@ spam_tasks = {session: None for session in clients}
 explore_tasks = {session: None for session in clients}
 
 # Admins who can control the bot
-AUTHORIZED_USERS = [7508462500, 1710597756, 6895497681, 7435756663]
+AUTHORIZED_USERS = [7508462500, 1710597756, 6895497681, 7435756663, 6523029979]
 
 
 async def auto_spam(client, session_name):
